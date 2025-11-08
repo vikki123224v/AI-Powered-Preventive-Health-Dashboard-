@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Activity, Heart, Moon, Droplet, TrendingUp, AlertCircle } from 'lucide-react';
 import { Line, Doughnut } from 'react-chartjs-2';
+import HealthMetricForm from '../components/HealthMetricForm';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -68,8 +69,10 @@ const Dashboard = () => {
 
   useEffect(() => {
     fetchData();
+    const onUpdate = () => fetchData();
+    window.addEventListener('health:updated', onUpdate);
     const interval = setInterval(fetchData, 30000); // Refresh every 30 seconds
-    return () => clearInterval(interval);
+    return () => { clearInterval(interval); window.removeEventListener('health:updated', onUpdate); };
   }, []);
 
   const fetchData = async () => {
@@ -152,7 +155,10 @@ const Dashboard = () => {
         <p className="text-gray-600 dark:text-gray-400">Monitor your health metrics and insights</p>
       </div>
 
-      {/* Risk Score Card */}
+        {/* Health Metric Form */}
+        <HealthMetricForm />
+
+        {/* Risk Score Card */}
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -172,7 +178,7 @@ const Dashboard = () => {
                'Critical Risk - Consult healthcare provider'}
             </p>
           </div>
-          <div className="w-32 h-32">
+          <div className="w-24 h-24">
             <Doughnut
               data={riskChartData}
               options={{
@@ -180,11 +186,13 @@ const Dashboard = () => {
                 plugins: {
                   legend: { display: false },
                   tooltip: { enabled: false }
-                }
+                },
+                maintainAspectRatio: true,
+                responsive: true
               }}
             />
-            <div className="relative -top-24 text-center">
-              <span className="text-2xl font-bold">{riskScore}%</span>
+            <div className="relative -top-[4.5rem] text-center">
+              <span className="text-xl font-bold">{riskScore}%</span>
             </div>
           </div>
         </div>
@@ -223,28 +231,32 @@ const Dashboard = () => {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-5xl mx-auto">
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="card"
+          className="card p-4"
+          style={{ height: '300px' }}
         >
-          <h3 className="text-lg font-semibold mb-4">Health Trends (Last 7 Days)</h3>
-          <Line
-            data={chartData}
-            options={{
-              responsive: true,
-              maintainAspectRatio: false,
-              plugins: {
-                legend: { position: 'top' },
-                tooltip: { mode: 'index', intersect: false }
-              },
-              scales: {
-                y: { beginAtZero: true }
-              }
-            }}
-            height={300}
-          />
+          <h3 className="text-lg font-semibold mb-2">Health Trends (Last 7 Days)</h3>
+          <div className="h-[250px] w-full">
+            <Line
+              data={chartData}
+              options={{
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                  legend: { position: 'top', labels: { boxWidth: 12, padding: 8, font: { size: 11 } } },
+                  tooltip: { mode: 'index', intersect: false }
+                },
+                scales: {
+                  y: { beginAtZero: true, ticks: { font: { size: 10 } } },
+                  x: { ticks: { font: { size: 10 } } }
+                }
+              }}
+            />
+          </div>
+            
         </motion.div>
 
         <motion.div

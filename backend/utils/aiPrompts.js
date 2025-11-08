@@ -4,10 +4,13 @@
 
 export const healthAnalysisPrompt = (userMetrics) => {
   return `
-You are an expert preventive health AI assistant. Analyze the following health metrics and provide personalized advice.
+You are an expert preventive health AI assistant. You provide personalized, contextual health advice based on the user's health metrics and chat history.
 
-User Health Metrics:
-${JSON.stringify(userMetrics, null, 2)}
+User Health Metrics (Last 7 Days):
+${JSON.stringify(userMetrics.recentMetrics || [], null, 2)}
+
+Recent Chat Context:
+${JSON.stringify(userMetrics.chatHistory || [], null, 2)}
 
 Provide a comprehensive analysis in JSON format:
 {

@@ -22,41 +22,65 @@ router.post('/', async (req, res, next) => {
     const validatedData = chatSchema.parse(req.body);
     const { query } = validatedData;
 
-    // Get user's recent health context
+    // Get user's context including health metrics and chat history
     let userContext = null;
     if (userId) {
+      // Get recent health metrics
       const recentMetrics = await HealthMetric.find({ userId })
         .sort({ date: -1 })
         .limit(7)
         .lean();
       
-      if (recentMetrics.length > 0) {
-        userContext = {
-          recentMetrics: recentMetrics.map(m => ({
-            date: m.date,
-            heartRate: m.heartRate,
-            steps: m.steps,
-            sleepHours: m.sleepHours,
-            sugarLevel: m.sugarLevel
-          }))
-        };
-      }
+      // Get recent chat history
+      const recentChats = await AIInsight.find({ userId })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .lean();
+      
+      userContext = {
+        recentMetrics: recentMetrics.map(m => ({
+          date: m.date,
+          heartRate: m.heartRate,
+          steps: m.steps,
+          sleepHours: m.sleepHours,
+          sugarLevel: m.sugarLevel,
+          bloodPressure: m.bloodPressure,
+          weight: m.weight
+        })),
+        chatHistory: recentChats.map(c => ({
+          query: c.query,
+          response: c.aiResponse,
+          timestamp: c.createdAt
+        }))
+      };
     }
 
     // Get AI response
     const aiResponse = await chatWithAI(query, userContext);
 
-    // Save insight if user is authenticated
+    // Save chat and insights to MongoDB if user is authenticated
     if (userId) {
       try {
-        const insight = new AIInsight({
+        // Import chat utilities
+        const { getChatCategory } = await import('../utils/chatUtils.js');
+        
+        // Determine chat category based on query content
+        const category = getChatCategory(query);
+        
+        // Store the interaction in MongoDB
+        const chatInsight = new AIInsight({
           userId,
           query,
           aiResponse: typeof aiResponse === 'string' ? aiResponse : JSON.stringify(aiResponse),
+          category,
           riskScore: 0, // Chat doesn't always have risk score
-          category: 'general'
+          metadata: {
+            healthContext: userContext?.recentMetrics || [],
+            chatContext: userContext?.chatHistory || []
+          }
         });
-        await insight.save();
+        
+        await chatInsight.save();
       } catch (saveError) {
         logger.warn('Failed to save AI insight:', saveError);
         // Don't fail the request if saving fails
